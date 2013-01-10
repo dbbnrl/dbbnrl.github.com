@@ -2,10 +2,10 @@
 #      Main Configs       #
 # ----------------------- #
 
-url: http://yoursite.com
-title: My Octopress Blog
-subtitle: A blogging framework for hackers.
-author: Your Name
+url: http://dbbnrl.github.com
+title: Backing Store
+subtitle: Swapping out my brain...
+author: Dan Brown
 simple_search: http://google.com/search
 description:
 
