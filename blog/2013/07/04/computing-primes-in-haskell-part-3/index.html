@@ -1,0 +1,332 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Computing primes in Haskell - part 3 - Backing Store</title>
+  <meta name="author" content="Dan Brown">
+
+  
+  <meta name="description" content="Last time I got my Haskell prime generator down to 17 seconds, compared to 2.5 seconds for the C version. Here is the Haskell code I wound up with: &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://dbbnrl.github.com/blog/2013/07/04/computing-primes-in-haskell-part-3/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Backing Store" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Backing Store</a></h1>
+  
+    <h2>Swapping out my brain...</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:dbbnrl.github.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Computing Primes in Haskell - Part 3</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-07-04T18:16:00-04:00" pubdate data-updated="true">Jul 4<span>th</span>, 2013</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><a href="/blog/2013/07/03/computing-primes-in-haskell-part-2/">Last time</a> I got my Haskell prime generator down to 17 seconds, compared to 2.5 seconds for the <a href="/blog/2013/06/25/computing-primes-in-haskell/">C version</a>.  Here is the Haskell code I wound up with:</p>
+
+<figure class='code'><figcaption><span>Version 4 [17s]</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='haskell'><span class='line'><span class="nf">isPrime4</span> <span class="n">x</span> <span class="ow">=</span> <span class="n">not</span> <span class="o">$</span> <span class="n">any</span> <span class="p">(</span><span class="o">==</span><span class="mi">0</span><span class="p">)</span> <span class="o">$</span> <span class="n">map</span> <span class="p">(</span><span class="n">x</span> <span class="p">`</span><span class="n">rem</span><span class="p">`)</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="mi">5</span><span class="o">..</span><span class="n">floor</span> <span class="p">(</span><span class="n">sqrt</span> <span class="p">(</span><span class="n">fromIntegral</span> <span class="n">x</span><span class="p">))]</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">primes4</span> <span class="ow">::</span> <span class="p">[</span><span class="kt">Int</span><span class="p">]</span>
+</span><span class='line'><span class="nf">primes4</span> <span class="ow">=</span> <span class="p">[</span><span class="n">n</span> <span class="o">|</span> <span class="n">n</span> <span class="ow">&lt;-</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="mi">5</span><span class="o">..</span><span class="p">],</span> <span class="n">isPrime4</span> <span class="n">n</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">main</span> <span class="ow">=</span> <span class="kr">do</span>
+</span><span class='line'>    <span class="kr">let</span> <span class="n">cnt</span> <span class="ow">=</span> <span class="mi">1000000</span>
+</span><span class='line'>    <span class="n">print</span> <span class="o">$</span> <span class="n">primes4</span> <span class="o">!!</span> <span class="n">cnt</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>I was so focused on optimizing Haskell last time (both for performance and readability), that I forgot an important issue.  I haven&rsquo;t actually implemented the same algorithm as in the C version:</p>
+
+<ul>
+<li>The list of potential factors we&rsquo;re using in <code>isprime4</code> to test for primality is the odd numbers less than or equal to <code>sqrt(x)</code>, rather than the <strong>prime</strong> numbers less than or equal to <code>sqrt(x)</code>.</li>
+<li>The use of <code>sqrt</code> is probably quite expensive; the C version squares each factor instead.</li>
+</ul>
+
+
+<p>Let&rsquo;s see if we can address those issues.  First, get rid of <code>sqrt</code>:</p>
+
+<figure class='code'><figcaption><span>Version 5 - No square root [46s]</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='haskell'><span class='line'><span class="nf">isPrime5</span> <span class="n">x</span> <span class="ow">=</span> <span class="n">not</span> <span class="o">$</span> <span class="n">any</span> <span class="p">(</span><span class="o">==</span><span class="mi">0</span><span class="p">)</span> <span class="o">$</span> <span class="n">map</span> <span class="p">(</span><span class="n">x</span> <span class="p">`</span><span class="n">rem</span><span class="p">`)</span> <span class="o">$</span> <span class="n">takeWhile</span> <span class="n">inRange</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="mi">5</span><span class="o">..</span><span class="p">]</span>
+</span><span class='line'>    <span class="kr">where</span> <span class="n">inRange</span> <span class="n">f</span> <span class="ow">=</span> <span class="p">(</span><span class="n">f</span><span class="o">*</span><span class="n">f</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">x</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">primes5</span> <span class="ow">::</span> <span class="p">[</span><span class="kt">Int</span><span class="p">]</span>
+</span><span class='line'><span class="nf">primes5</span> <span class="ow">=</span> <span class="p">[</span><span class="n">n</span> <span class="o">|</span> <span class="n">n</span> <span class="ow">&lt;-</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="mi">5</span><span class="o">..</span><span class="p">],</span> <span class="n">isPrime5</span> <span class="n">n</span><span class="p">]</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Since we&rsquo;re avoiding <code>sqrt</code>, we can&rsquo;t simply take odd integers up to a known upper bound, so we have to be a bit more creative.  <code>takeWhile</code> will pull from the (infinite) list of odd numbers while a condition is true.</p>
+
+<p>Unfortunately, the runtime jumps way up to 46 seconds.  What&rsquo;s the deal?  After some investigation, my conclusion is that fusion is not implemented for <code>takeWhile</code>, <a href="http://haskell.1045720.n5.nabble.com/Unexpected-list-non-fusion-td5069492.html">although it probably could be</a>.  This is unfortunate, but let&rsquo;s keep going &mdash; I expect fusion will also be incompatible with the next optimization.  Will it be worth it?</p>
+
+<p>Next, we need to figure out a way to supply a list of prime numbers to <code>isprime</code>, rather than using a list of odd numbers.  Where can we find a list of prime numbers?</p>
+
+<figure class='code'><figcaption><span>Version 6 - Only test prime factors [14s]</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='haskell'><span class='line'><span class="nf">isPrime6</span> <span class="n">x</span> <span class="ow">=</span> <span class="n">not</span> <span class="o">$</span> <span class="n">any</span> <span class="p">(</span><span class="o">==</span><span class="mi">0</span><span class="p">)</span> <span class="o">$</span> <span class="n">map</span> <span class="p">(</span><span class="n">x</span> <span class="p">`</span><span class="n">rem</span><span class="p">`)</span> <span class="o">$</span> <span class="n">takeWhile</span> <span class="n">inRange</span> <span class="n">primes6</span>
+</span><span class='line'>    <span class="kr">where</span> <span class="n">inRange</span> <span class="n">f</span> <span class="ow">=</span> <span class="p">(</span><span class="n">f</span><span class="o">*</span><span class="n">f</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">x</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">primes6</span> <span class="ow">::</span> <span class="p">[</span><span class="kt">Int</span><span class="p">]</span>
+</span><span class='line'><span class="nf">primes6</span> <span class="ow">=</span> <span class="mi">3</span><span class="kt">:</span><span class="p">[</span><span class="n">n</span> <span class="o">|</span> <span class="n">n</span> <span class="ow">&lt;-</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">7</span><span class="o">..</span><span class="p">],</span> <span class="n">isPrime6</span> <span class="n">n</span><span class="p">]</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Version 6 really shows off what you can do with laziness.  As our list of prime factors, we supply to <code>isprime6</code> the infinite list <code>primes6</code>, which is precisely the value we&rsquo;re trying to compute!</p>
+
+<p>This is a bit circular, and in fact I had to pull the first prime (3) out of the loop and explicitly tack it onto the front of the list to avoid an infinite recursion.  After that point, however, <code>isprime6</code> is guaranteed never to walk farther into <code>primes6</code> than those values that have already been computed.  (To be really operational about it:  At any given time, <code>primes6</code> consists of a finite list of prime numbers followed by an unevaluated <em>thunk</em> which represents the rest of the infinite list.  Due to the <code>inRange</code> termination condition, <code>isprime6</code> can never traverse the list far enough to reach the thunk.)</p>
+
+<p>This version takes 14 seconds.  That really isn&rsquo;t as much of an improvement over version 4 as I&rsquo;d expect, given the vastly smaller set of factors that are being examined.  To isolate the effects of list fusion, let&rsquo;s manually fuse version 6 (thus undoing the improvements in code clarity we achieved in versions 2 through 4):</p>
+
+<figure class='code'><figcaption><span>Version 7 - Manual fusion [8s]</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='haskell'><span class='line'><span class="nf">isPrime7</span> <span class="n">x</span> <span class="ow">=</span> <span class="n">test</span> <span class="n">primes7</span>
+</span><span class='line'>    <span class="kr">where</span> <span class="n">test</span> <span class="p">(</span><span class="n">f</span><span class="kt">:</span><span class="n">fs</span><span class="p">)</span>
+</span><span class='line'>            <span class="o">|</span> <span class="p">(</span><span class="n">f</span><span class="o">*</span><span class="n">f</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">x</span>                 <span class="ow">=</span> <span class="kt">True</span>
+</span><span class='line'>            <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="p">`</span><span class="n">rem</span><span class="p">`</span> <span class="n">f</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>          <span class="ow">=</span> <span class="kt">False</span>
+</span><span class='line'>            <span class="o">|</span> <span class="n">otherwise</span>                 <span class="ow">=</span> <span class="n">test</span> <span class="n">fs</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">primes7</span> <span class="ow">::</span> <span class="p">[</span><span class="kt">Int</span><span class="p">]</span>
+</span><span class='line'><span class="nf">primes7</span> <span class="ow">=</span> <span class="mi">3</span><span class="kt">:</span><span class="p">[</span><span class="n">n</span> <span class="o">|</span> <span class="n">n</span> <span class="ow">&lt;-</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">7</span><span class="o">..</span><span class="p">],</span> <span class="n">isPrime7</span> <span class="n">n</span><span class="p">]</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now we&rsquo;re down to 8 seconds &mdash; a pretty massive improvement over 14 seconds, and only a factor of 3 or so from the C version&rsquo;s performance.  For a ridiculously simple toy problem, I&rsquo;ve learned (or mislearned?) a surprising amount about Haskell optimization.</p>
+
+<p>I suspect I&rsquo;ve taken this about as far as it can go using Haskell&rsquo;s list datatype.  The next step is to investigate array-like alternatives.</p>
+
+<p>At this point, my conclusion is that a highly-readable, compositional coding style is sometimes at odds with performance, because GHC just isn&rsquo;t quite smart enough <sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>.  I&rsquo;d be interested in what more experienced Haskell programmers have to say on this subject.</p>
+
+<p>As a side note, observant readers will notice that <code>test</code> in version 7 is a partial function; it will fail on the empty list.  It turns out that it actually <strong>can&rsquo;t</strong> fail, due to the <code>(f*f) &gt; x</code> termination test &mdash; but the compiler has no way of knowing this.  I wonder what the implications of this are from an optimization standpoint?</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>In case anyone is wondering:  I have tried every version so far with the LLVM backend to GHC, and observed no dramatic differences.  Results were typically within one second of what I&rsquo;ve reported here.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Dan Brown</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-07-04T18:16:00-04:00" pubdate data-updated="true">Jul 4<span>th</span>, 2013</time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://dbbnrl.github.com/blog/2013/07/04/computing-primes-in-haskell-part-3/" data-via="" data-counturl="http://dbbnrl.github.com/blog/2013/07/04/computing-primes-in-haskell-part-3/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/07/03/computing-primes-in-haskell-part-2/" title="Previous Post: Computing primes in Haskell - part 2">&laquo; Computing primes in Haskell - part 2</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/07/04/computing-primes-in-haskell-part-3/">Computing primes in Haskell - part 3</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/07/03/computing-primes-in-haskell-part-2/">Computing primes in Haskell - part 2</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/06/25/computing-primes-in-haskell/">Computing primes in Haskell</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/01/09/a-bit-late-to-the-party/">A bit late to the party</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Dan Brown -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'backingstore';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://dbbnrl.github.com/blog/2013/07/04/computing-primes-in-haskell-part-3/';
+        var disqus_url = 'http://dbbnrl.github.com/blog/2013/07/04/computing-primes-in-haskell-part-3/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
